@@ -9,11 +9,13 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { LoginDto, CreateUserDto } from './dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User) private userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
@@ -24,19 +26,13 @@ export class AuthService {
         password: bcrypt.hashSync(password, 10),
       });
       await this.userRepository.save(user);
-      return user;
+      return {
+        ...user,
+        token: this.getJwtToken({ email: user.email }),
+      };
     } catch (error) {
       this.handleDBError(error);
     }
-  }
-
-  private handleDBError(error: any): never {
-    if (error.code === '23505') {
-      throw new BadRequestException(error.detail);
-    }
-    throw new InternalServerErrorException(
-      'Unexpected error, check server logs',
-    );
   }
 
   async login(loginDto: LoginDto) {
@@ -51,6 +47,23 @@ export class AuthService {
     if (!bcrypt.compareSync(password, user.password)) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return user;
+    return {
+      ...user,
+      token: this.getJwtToken({ email: user.email }),
+    };
+  }
+
+  private getJwtToken(payload: { email: string }) {
+    const token = this.jwtService.sign(payload);
+    return token;
+  }
+
+  private handleDBError(error: { code?: string; detail?: string }): never {
+    if (error.code === '23505') {
+      throw new BadRequestException(error.detail);
+    }
+    throw new InternalServerErrorException(
+      'Unexpected error, check server logs',
+    );
   }
 }
