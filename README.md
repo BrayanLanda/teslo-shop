@@ -25,7 +25,7 @@ http://localhost:3000/api/seed
 npm run start:dev
 ```
 
-### Producion
+### Producción
 
 https://teslo-shop-62vl.onrender.com/api
 
